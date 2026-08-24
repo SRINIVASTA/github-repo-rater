@@ -2,6 +2,9 @@
 
 An automated profile auditing engine that securely parses a developer's public footprint via the GitHub REST API to calculate a weighted profile score, footprint distribution, and structural optimization grade.
 
+🌐 **Live Interactive Web App:** [Launch Live Streamlit Dashboard](https://git-repo-rater-vrjefshmuuzegrpdzjphka.streamlit.app/)
+
+
 ## 🌟 Features
 
 - **Instant Browser Auditing:** Fetch and grade any developer's public footprint by username.
