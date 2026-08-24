@@ -10,46 +10,42 @@ st.title("📊 GitHub Repository Rater")
 st.write("Analyze and evaluate repository health instantly from your browser.")
 
 # --- 🔑 SECRET TOKEN DIAGNOSTIC CHECK ---
-# This block checks if your Streamlit Cloud Secrets are loading properly
 if "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != "":
     st.sidebar.success("🔒 GitHub Authentication Token: ACTIVE")
-    # Hide the actual token string for security reasons
-    masked_token = st.secrets["GITHUB_TOKEN"][:4] + "..." + st.secrets["GITHUB_TOKEN"][-4:]
-    st.sidebar.caption(f"Loaded Token: `{masked_token}`")
+    raw_token = st.secrets["GITHUB_TOKEN"].strip()
+    masked_token = raw_token[:4] + "..." + raw_token[-4:] if len(raw_token) > 8 else "INVALID"
+    st.sidebar.caption(f"Loaded Token structure: `{masked_token}`")
 else:
     st.sidebar.error("⚠️ GitHub Authentication Token: MISSING")
-    st.sidebar.info(
-        "To fix this, go to Streamlit Cloud -> Manage App -> Advanced Settings -> Secrets "
-        "and add:\n\n`GITHUB_TOKEN = \"your_github_token_here\"`"
-    )
+    st.sidebar.info("Add: `GITHUB_TOKEN = \"your_token\"` to Streamlit Cloud Secrets.")
 
 # Interactive text box
-repo_input = st.text_input("Repository Path", placeholder="e.g., SRINIVASTA/vizag-smart-health-app")
+repo_input = st.text_input("Repository Path", placeholder="e.g., srinivasta/vizag-smart-health-app")
 
 if st.button("Run Analytics Engine", type="primary"):
     if not repo_input:
         st.warning("Please enter a valid path.")
     else:
-        # Format strings to extract exact repo addresses
-        repo_path = repo_input.replace("https://github.com", "").strip("/")
+        # Standardize, lower-case, and cleanup user string input fields
+        repo_path = repo_input.replace("https://github.com/", "").strip("/").lower()
         
         if "/" not in repo_path:
-            st.error("⚠️ Invalid format! Please enter the path as 'username/repository-name'.")
+            st.error("⚠️ Invalid format! Use 'username/repository-name'.")
         else:
             api_url = f"https://github.com{repo_path}"
             
-            # Setup request headers
+            # Setup modern enterprise headers
             headers = {
-                "Accept": "application/vnd.github.v3+json"
+                "Accept": "application/vnd.github.v3+json",
+                "User-Agent": "Streamlit-Repo-Rater-App-v2"
             }
             
-            # Inject the token from secrets into the authorization header
+            # MODERN AUTH CORRECTION: Swapped 'token' prefix with 'Bearer' 
             if "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != "":
-                headers["Authorization"] = f"token {st.secrets['GITHUB_TOKEN'].strip()}"
+                headers["Authorization"] = f"Bearer {st.secrets['GITHUB_TOKEN'].strip()}"
             
             with st.spinner("Processing API data metrics..."):
                 try:
-                    # Execute the request with a timeout
                     response = requests.get(api_url, headers=headers, timeout=10)
                     
                     if response.status_code == 200:
@@ -58,22 +54,21 @@ if st.button("Run Analytics Engine", type="primary"):
                         
                         st.success(f"Analysis Complete for {repo_data.get('full_name')}!")
                         
-                        # Big Grade Badges
+                        # Render Numeric Metrics
                         c1, c2 = st.columns(2)
                         with c1:
                             st.metric(label="Overall Score", value=f"{results['total_score']} / 100")
                         with c2:
                             st.metric(label="Calculated Grade", value=results['grade'])
                         
-                        # Visual Chart
-                        st.subheader("📊 Metric Score Breakdown")
+                        # Graph Display
                         chart_df = pd.DataFrame({
                             "Metric Section": list(results["breakdown"].keys()),
                             "Assigned Weight": list(results["breakdown"].values())
                         })
                         st.bar_chart(data=chart_df, x="Metric Section", y="Assigned Weight", use_container_width=True)
                         
-                        # Smart Automated Recommendations based on Grade
+                        # Audit insights
                         st.subheader("💡 Rater Audit Insights")
                         if results['grade'] in ["A+", "A"]:
                             st.info("🔥 This repository is highly optimized, active, and exhibits phenomenal open-source health standards.")
@@ -82,18 +77,19 @@ if st.button("Run Analytics Engine", type="primary"):
                         else:
                             st.error("🚨 Critical maintenance needed. Check if this repository has open issues running wild or missing core README files.")
                         
-                    elif response.status_code == 401:
-                        st.error("❌ Unauthorized! The GITHUB_TOKEN inside your Streamlit Secrets is invalid or has expired. Please regenerate a new token on GitHub.")
-                    elif response.status_code == 403:
-                        st.error("🚫 GitHub API Rate limit completely exhausted. The app is falling back to anonymous requests because the token is not being processed correctly.")
-                    elif response.status_code == 404:
-                        st.error("🔍 Repository not found. Please double-check the spelling layout.")
                     else:
-                        st.error(f"GitHub API returned unexpected status code: {response.status_code}.")
+                        # 🔍 CLEAR DEBUG ERROR PANEL
+                        st.error(f"❌ GitHub API Error! Server Response Code: {response.status_code}")
+                        if response.status_code == 401:
+                            st.info("💡 **Reason (Bad Credentials):** The token you pasted inside Streamlit Secrets is invalid, has a typo, or was revoked. Generate a fresh token on GitHub.")
+                        elif response.status_code == 403:
+                            st.info("💡 **Reason (Rate Limited/Forbidden):** If your token is loaded, this means it lacks the `public_repo` scope checkbox. Edit your token on GitHub and check that box.")
+                        elif response.status_code == 404:
+                            st.info(f"💡 **Reason (Not Found):** The repository path `{repo_path}` doesn't match a public project. Check for trailing typos.")
                         
                 except requests.exceptions.Timeout:
-                    st.error("⏳ Connection timed out! Please try again.")
+                    st.error("⏳ Connection timed out!")
                 except requests.exceptions.ConnectionError:
-                    st.error("🌐 Shared IP block detected. Streamlit Cloud's anonymous proxy IP is rate-limited by GitHub. If your token status shows ACTIVE on the left sidebar, double-check that the token string itself is correct and unexpired.")
+                    st.error("🌐 Hard infrastructure network block encountered between server nodes.")
                 except Exception as e:
-                    st.error(f"An unexpected app tracking exception occurred: {str(e)}")
+                    st.error(f"Unexpected operational loop failure: {str(e)}")
