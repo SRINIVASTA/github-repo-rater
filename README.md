@@ -4,7 +4,6 @@ An automated profile auditing engine that securely parses a developer's public f
 
 🌐 **Live Interactive Web App:** [Launch Live Streamlit Dashboard](https://git-repo-rater-vrjefshmuuzegrpdzjphka.streamlit.app/)
 
-
 ## 🌟 Features
 
 - **Instant Browser Auditing:** Fetch and grade any developer's public footprint by username.
@@ -14,7 +13,7 @@ An automated profile auditing engine that securely parses a developer's public f
   - **Network Influence:** Tracking engagement metrics, contributions, and social visibility.
   - **Profile Optimization:** Assessing biography, layout completeness, and personal branding.
   - **Evaluation Module:** Comprehensive overview scoring of general engineering habits.
-- **Token Integration:** Built-in validation checking for active `GITHUB_TOKEN` statuses to prevent API rate-limiting during deep audits.
+- **Token Integration:** Built-in validation checking for active `GITHUB_TOKEN` statuses via Streamlit secrets to prevent API rate-limiting during deep audits.
 
 ## 📊 Evaluation Metrics
 
@@ -53,22 +52,39 @@ Ensure you have Python 3.x installed. Download it directly from the [Official Py
    pip install -r requirements.txt
    ```
 
-### Authentication Setup
+## 🔒 Secrets & Authentication Configuration
 
-To execute full audits without rate limits, generate a Personal Access Token (PAT) from your [GitHub Developer Settings](https://github.com/settings/tokens). 
+To run full profile audits without hitting GitHub API rate limits, a GitHub Personal Access Token (PAT) is required. This project uses Streamlit's native secrets management.
 
-Create a `.env` file in the root directory and append your token:
-```env
-GITHUB_TOKEN=your_personal_access_token_here
-```
+### 💻 Local Development Setup
+To mock Streamlit secrets locally without leaking credentials to GitHub:
+1. Create a `.streamlit` folder in your project root:
+   ```bash
+   mkdir .streamlit
+   ```
+2. Inside that folder, create a file named `secrets.toml`:
+   ```toml
+   # .streamlit/secrets.toml
+   GITHUB_TOKEN = "your_personal_access_token_here"
+   ```
+*(Note: Your repository's `.gitignore` is already set up to ignore this local configuration file).*
+
+### 🚀 Production Cloud Deployment (Streamlit Community Cloud)
+When deploying your live fork to Streamlit Cloud, inject your secure environment token via your cloud dashboard:
+1. Go to your **Streamlit App Workspace** -> Click **Settings** -> Open the **Secrets** tab.
+2. Input your token directly into the form:
+   ```toml
+   GITHUB_TOKEN = "your_actual_production_github_token"
+   ```
 
 ## 💻 Usage
 
-To launch the script and generate a profile audit report directly from your command line or web dashboard, execute:
+To launch the script and run the application interface locally, execute:
 
 ```bash
-python -m app.main
+streamlit run app/main.py
 ```
+*(Note: Adjust the file path if your main driver script inside the `/app` directory uses a different filename like `app.py`).*
 
 ## 📜 License
 
