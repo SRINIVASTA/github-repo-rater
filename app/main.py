@@ -31,7 +31,6 @@ with tab1:
             
             with st.spinner(f"Requesting data streams for @{username}..."):
                 try:
-                    # FIX: Corrected API URLs and wrapped in a try-except layer
                     res = requests.get(f"https://github.com{username}", headers=headers, timeout=10)
                     rep_res = requests.get(f"https://github.com{username}/repos?per_page=100", headers=headers, timeout=10)
                     
@@ -79,7 +78,7 @@ with tab1:
                             with target_col:
                                 icon = "⭐" if b["unlocked"] else "🔒"
                                 status_text = "**[UNLOCKED]**" if b["unlocked"] else "*[LOCKED]*"
-                               st.markdown(f"**{icon} {b['name']}** {status_text}")
+                                st.markdown(f"**{icon} {b['name']}** {status_text}")
                                 st.caption(f"{b['desc']} *(Status: {b['progress']})*")
                                 st.divider()
                     else:
