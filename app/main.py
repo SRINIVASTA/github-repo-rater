@@ -9,8 +9,22 @@ st.set_page_config(page_title="GitHub Repo Rater", page_icon="📊", layout="cen
 st.title("📊 GitHub Repository Rater")
 st.write("Analyze and evaluate repository health instantly from your browser.")
 
+# --- 🔑 SECRET TOKEN DIAGNOSTIC CHECK ---
+# This block checks if your Streamlit Cloud Secrets are loading properly
+if "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != "":
+    st.sidebar.success("🔒 GitHub Authentication Token: ACTIVE")
+    # Hide the actual token string for security reasons
+    masked_token = st.secrets["GITHUB_TOKEN"][:4] + "..." + st.secrets["GITHUB_TOKEN"][-4:]
+    st.sidebar.caption(f"Loaded Token: `{masked_token}`")
+else:
+    st.sidebar.error("⚠️ GitHub Authentication Token: MISSING")
+    st.sidebar.info(
+        "To fix this, go to Streamlit Cloud -> Manage App -> Advanced Settings -> Secrets "
+        "and add:\n\n`GITHUB_TOKEN = \"your_github_token_here\"`"
+    )
+
 # Interactive text box
-repo_input = st.text_input("Repository Path", placeholder="e.g., srinivasta/ai-portfolio-engine")
+repo_input = st.text_input("Repository Path", placeholder="e.g., SRINIVASTA/vizag-smart-health-app")
 
 if st.button("Run Analytics Engine", type="primary"):
     if not repo_input:
@@ -24,12 +38,18 @@ if st.button("Run Analytics Engine", type="primary"):
         else:
             api_url = f"https://github.com{repo_path}"
             
-            headers = {}
-            if "GITHUB_TOKEN" in st.secrets:
-                headers["Authorization"] = f"token {st.secrets['GITHUB_TOKEN']}"
+            # Setup request headers
+            headers = {
+                "Accept": "application/vnd.github.v3+json"
+            }
+            
+            # Inject the token from secrets into the authorization header
+            if "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != "":
+                headers["Authorization"] = f"token {st.secrets['GITHUB_TOKEN'].strip()}"
             
             with st.spinner("Processing API data metrics..."):
                 try:
+                    # Execute the request with a timeout
                     response = requests.get(api_url, headers=headers, timeout=10)
                     
                     if response.status_code == 200:
@@ -53,7 +73,7 @@ if st.button("Run Analytics Engine", type="primary"):
                         })
                         st.bar_chart(data=chart_df, x="Metric Section", y="Assigned Weight", use_container_width=True)
                         
-                        # 📝 Smart Automated Recommendations based on Grade
+                        # Smart Automated Recommendations based on Grade
                         st.subheader("💡 Rater Audit Insights")
                         if results['grade'] in ["A+", "A"]:
                             st.info("🔥 This repository is highly optimized, active, and exhibits phenomenal open-source health standards.")
@@ -62,8 +82,10 @@ if st.button("Run Analytics Engine", type="primary"):
                         else:
                             st.error("🚨 Critical maintenance needed. Check if this repository has open issues running wild or missing core README files.")
                         
+                    elif response.status_code == 401:
+                        st.error("❌ Unauthorized! The GITHUB_TOKEN inside your Streamlit Secrets is invalid or has expired. Please regenerate a new token on GitHub.")
                     elif response.status_code == 403:
-                        st.error("🚫 GitHub API Rate limit completely exhausted. Please add a GITHUB_TOKEN inside Streamlit Cloud Secrets.")
+                        st.error("🚫 GitHub API Rate limit completely exhausted. The app is falling back to anonymous requests because the token is not being processed correctly.")
                     elif response.status_code == 404:
                         st.error("🔍 Repository not found. Please double-check the spelling layout.")
                     else:
@@ -72,6 +94,6 @@ if st.button("Run Analytics Engine", type="primary"):
                 except requests.exceptions.Timeout:
                     st.error("⏳ Connection timed out! Please try again.")
                 except requests.exceptions.ConnectionError:
-                    st.error("🌐 Shared IP block detected. Please use a Personal Access Token to secure your connection.")
+                    st.error("🌐 Shared IP block detected. Streamlit Cloud's anonymous proxy IP is rate-limited by GitHub. If your token status shows ACTIVE on the left sidebar, double-check that the token string itself is correct and unexpired.")
                 except Exception as e:
-                    st.error("An unexpected app tracking exception occurred.")
+                    st.error(f"An unexpected app tracking exception occurred: {str(e)}")
