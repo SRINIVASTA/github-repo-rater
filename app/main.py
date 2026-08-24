@@ -27,61 +27,68 @@ with tab1:
     
     if st.button("Run Live Audit", type="primary"):
         if user_input:
-            username = user_input.replace("https://github.com/", "").strip("/").split("/")[-1]
+            username = user_input.replace("https://github.com", "").strip("/").split("/")[-1]
             
             with st.spinner(f"Requesting data streams for @{username}..."):
-                res = requests.get(f"https://github.com{username}", headers=headers)
-                rep_res = requests.get(f"https://github.com{username}/repos?per_page=100", headers=headers)
+                try:
+                    # FIX: Corrected API URLs and wrapped in a try-except layer
+                    res = requests.get(f"https://github.com{username}", headers=headers, timeout=10)
+                    rep_res = requests.get(f"https://github.com{username}/repos?per_page=100", headers=headers, timeout=10)
+                    
+                    if res.status_code == 200:
+                        user_data = res.json()
+                        repos_data = rep_res.json() if rep_res.status_code == 200 else []
+                        results = calculate_advanced_gitscore(user_data, repos_data)
+                        
+                        st.success(f"🎯 Audit Complete for @{user_data.get('login')}!")
+                        
+                        # Highlight grade banner
+                        st.markdown(
+                            f"<div style='background-color:{results['color']}22; border-radius:10px; padding:20px; border:2px solid {results['color']}; text-align:center;'> "
+                            f"<h1 style='color:{results['color']}; margin:0;'>{results['total_score']} / 100</h1>"
+                            f"<h3 style='margin:10px 0 0 0; color:#333;'>{results['tier']}</h3>"
+                            f"</div>", unsafe_allow_html=True
+                        )
+                        
+                        st.markdown(f"### 👤 {user_data.get('name') or user_data.get('login')}")
+                        st.write(f"📝 **Bio:** {user_data.get('bio') or '*No bio summary provided.*'}")
+                        
+                        # Performance breakdown tables
+                        st.subheader("💡 Strategic Profile Performance Breakdown")
+                        col_good, col_bad = st.columns(2)
+                        with col_good:
+                            st.markdown("#### ✅ What You Are Good At")
+                            for item in results["good"]: st.markdown(f"- {item}")
+                        with col_bad:
+                            st.markdown("#### ⚠️ Where You Can Improve")
+                            for item in results["bad"]: st.markdown(f"- {item}")
+                        
+                        # Fixed Layout: Metric weights allocation chart
+                        st.subheader("📊 Category Weights Chart")
+                        chart_df = pd.DataFrame(
+                            list(results["breakdown"].items()), 
+                            columns=["Evaluation Category", "Points Awarded"]
+                        )
+                        st.bar_chart(data=chart_df, x="Evaluation Category", y="Points Awarded", use_container_width=True)
+                        
+                        # Badges and progress layouts
+                        st.subheader("🏅 Unlockable Profile Achievements")
+                        b_col1, b_col2 = st.columns(2)
+                        for idx, b in enumerate(results["badges"]):
+                            target_col = b_col1 if idx % 2 == 0 else b_col2
+                            with target_col:
+                                icon = "⭐" if b["unlocked"] else "🔒"
+                                status_text = "**[UNLOCKED]**" if b["unlocked"] else "*[LOCKED]*"
+                               st.markdown(f"**{icon} {b['name']}** {status_text}")
+                                st.caption(f"{b['desc']} *(Status: {b['progress']})*")
+                                st.divider()
+                    else:
+                        st.error(f"❌ User Lookup Failed (Code {res.status_code}). Check spelling or token configuration settings.")
                 
-                if res.status_code == 200:
-                    user_data = res.json()
-                    repos_data = rep_res.json() if rep_res.status_code == 200 else []
-                    results = calculate_advanced_gitscore(user_data, repos_data)
-                    
-                    st.success(f"🎯 Audit Complete for @{user_data.get('login')}!")
-                    
-                    # Highlight grade banner
-                    st.markdown(
-                        f"<div style='background-color:{results['color']}22; border-radius:10px; padding:20px; border:2px solid {results['color']}; text-align:center;'> "
-                        f"<h1 style='color:{results['color']}; margin:0;'>{results['total_score']} / 100</h1>"
-                        f"<h3 style='margin:10px 0 0 0; color:#333;'>{results['tier']}</h3>"
-                        f"</div>", unsafe_allow_html=True
-                    )
-                    
-                    st.markdown(f"### 👤 {user_data.get('name') or user_data.get('login')}")
-                    st.write(f"📝 **Bio:** {user_data.get('bio') or '*No bio summary provided.*'}")
-                    
-                    # Performance breakdown tables
-                    st.subheader("💡 Strategic Profile Performance Breakdown")
-                    col_good, col_bad = st.columns(2)
-                    with col_good:
-                        st.markdown("#### ✅ What You Are Good At")
-                        for item in results["good"]: st.markdown(f"- {item}")
-                    with col_bad:
-                        st.markdown("#### ⚠️ Where You Can Improve")
-                        for item in results["bad"]: st.markdown(f"- {item}")
-                    
-                    # Fixed Layout: Metric weights allocation chart
-                    st.subheader("📊 Category Weights Chart")
-                    chart_df = pd.DataFrame(
-                        list(results["breakdown"].items()), 
-                        columns=["Evaluation Category", "Points Awarded"]
-                    )
-                    st.bar_chart(data=chart_df, x="Evaluation Category", y="Points Awarded", use_container_width=True)
-                    
-                    # Badges and progress layouts
-                    st.subheader("🏅 Unlockable Profile Achievements")
-                    b_col1, b_col2 = st.columns(2)
-                    for idx, b in enumerate(results["badges"]):
-                        target_col = b_col1 if idx % 2 == 0 else b_col2
-                        with target_col:
-                            icon = "⭐" if b["unlocked"] else "🔒"
-                            status_text = "**[UNLOCKED]**" if b["unlocked"] else "*[LOCKED]*"
-                            st.markdown(f"**{icon} {b['name']}** {status_text}")
-                            st.caption(f"{b['desc']} *(Status: {b['progress']})*")
-                            st.divider()
-                else:
-                    st.error(f"❌ User Lookup Failed (Code {res.status_code}). Check spelling or token configuration settings.")
+                except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                    st.error("🌐 Network Connection Error! Could not safely connect to GitHub API nodes.")
+                except Exception as e:
+                    st.error(f"An unexpected operational error occurred: {str(e)}")
 
 # ==========================================
 # TAB 2: HEAD-TO-HEAD COMPARISON
@@ -96,21 +103,24 @@ with tab2:
         
     if st.button("Run Comparison Simulation"):
         if user1 and user2:
-            res1 = requests.get(f"https://github.com{user1}", headers=headers).json()
-            res2 = requests.get(f"https://github.com{user2}", headers=headers).json()
-            
-            if "login" in res1 and "login" in res2:
-                st.markdown("### 🏆 Comparison Winner Metrics Grid")
-                c_block1, c_block2, c_block3 = st.columns(3)
-                with c_block1:
-                    st.metric(f"@{user1} Repos", f"{res1.get('public_repos')} repos")
-                with c_block2:
-                    st.metric(f"@{user2} Repos", f"{res2.get('public_repos')} repos")
-                with c_block3:
-                    winner = user1 if res1.get('followers', 0) > res2.get('followers', 0) else user2
-                    st.success(f"🔥 Crown Leader: @{winner}")
-            else:
-                st.error("Could not compile search matrix paths.")
+            try:
+                res1 = requests.get(f"https://github.com{user1}", headers=headers, timeout=10).json()
+                res2 = requests.get(f"https://github.com{user2}", headers=headers, timeout=10).json()
+                
+                if "login" in res1 and "login" in res2:
+                    st.markdown("### 🏆 Comparison Winner Metrics Grid")
+                    c_block1, c_block2, c_block3 = st.columns(3)
+                    with c_block1:
+                        st.metric(f"@{user1} Repos", f"{res1.get('public_repos')} repos")
+                    with c_block2:
+                        st.metric(f"@{user2} Repos", f"{res2.get('public_repos')} repos")
+                    with c_block3:
+                        winner = user1 if res1.get('followers', 0) > res2.get('followers', 0) else user2
+                        st.success(f"🔥 Crown Leader: @{winner}")
+                else:
+                    st.error("Could not compile search matrix paths. One of the usernames might be incorrect.")
+            except Exception as e:
+                st.error("Network issue running comparison.")
 
 # ==========================================
 # TAB 3: ROAST & ANNUAL WRAPPED
@@ -121,19 +131,22 @@ with tab3:
     
     if st.button("Generate Roast & Story Card"):
         if roast_target:
-            res = requests.get(f"https://github.com{roast_target}", headers=headers).json()
-            if "login" in res:
-                st.markdown("#### 💀 Profile Roast Script Engine")
-                st.error(
-                    f"Dear @{res.get('login')}: Your profile says you are working on advanced architectures, "
-                    f"yet your public repository metrics show a different story. "
-                    f"You spend all this time setting up token layouts but haven't pinned your best code. "
-                    f"Add crisp Markdown documentation before you launch your next audit! 😂"
-                )
-                
-                st.markdown("#### 🎁 Your Annual Code Wrapped Story Card")
-                st.info(
-                    f"✨ Active account footprint since year {res.get('created_at')[:4]}.\n"
-                    f"📦 Your workspace contains a total portfolio size of {res.get('public_repos')} active public repos."
-                )
-                st.download_button("📥 Download Wrapped Profile SVG Badge", data=f"<svg height='100' width='300'><text y='20'>@{res.get('login')} GitScore Certified</text></svg>", file_name="gitscore-badge.svg", mime="image/svg+xml")
+            try:
+                res = requests.get(f"https://github.com{roast_target}", headers=headers, timeout=10).json()
+                if "login" in res:
+                    st.markdown("#### 💀 Profile Roast Script Engine")
+                    st.error(
+                        f"Dear @{res.get('login')}: Your profile says you are working on advanced architectures, "
+                        f"yet your public repository metrics show a different story. "
+                        f"You spend all this time setting up token layouts but haven't pinned your best code. "
+                        f"Add crisp Markdown documentation before you launch your next audit! 😂"
+                    )
+                    
+                    st.markdown("#### 🎁 Your Annual Code Wrapped Story Card")
+                    st.info(
+                        f"✨ Active account footprint since year {res.get('created_at')[:4]}.\n"
+                        f"📦 Your workspace contains a total portfolio size of {res.get('public_repos')} active public repos."
+                    )
+                    st.download_button("📥 Download Wrapped Profile SVG Badge", data=f"<svg height='100' width='300'><text y='20'>@{res.get('login')} GitScore Certified</text></svg>", file_name="gitscore-badge.svg", mime="image/svg+xml")
+            except Exception as e:
+                st.error("Network issue generating roast dashboard.")
