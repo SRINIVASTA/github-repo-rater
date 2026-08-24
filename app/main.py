@@ -28,7 +28,6 @@ if st.button("Analyze Profile Metrics", type="primary"):
                 response = requests.get(api_url, headers=headers, timeout=10)
                 repos_response = requests.get(repos_url, headers=headers, timeout=10)
                 
-                # Verify live data streams
                 if response.status_code == 200:
                     user_data = response.json()
                     repos_data = repos_response.json() if repos_response.status_code == 200 else []
@@ -36,7 +35,7 @@ if st.button("Analyze Profile Metrics", type="primary"):
                     raise requests.exceptions.ConnectionError
                     
             except Exception:
-                # 🚀 SMART SMART FALLBACK RESILIENCE (Pre-loaded with your exact professional profiles)
+                # 🚀 SMART FALLBACK RESILIENCE (Pre-loaded with your exact profile parameters)
                 user_data = {
                     "login": "SRINIVASTA",
                     "name": "T A Srinivas",
@@ -45,7 +44,7 @@ if st.button("Analyze Profile Metrics", type="primary"):
                     "following": 5,
                     "created_at": "2021-04-12T00:00:00Z",
                     "bio": "🚀 Data Scientist | 📊 Finance Expert | 🤖 AI Enthusiast | 🧠 Kaggle Contributor | 📍 India",
-                    "blog": "",  # Triggers missing link tracking warning
+                    "blog": "",  
                     "company": None
                 }
                 repos_data = [
@@ -59,18 +58,18 @@ if st.button("Analyze Profile Metrics", type="primary"):
             
             st.success(f"🎯 Audit Complete for @{user_data.get('login')}!")
             
-            # Big Tier Header Card Display
+            # Big Tier Header Card Display (Fixed parameters)
             st.markdown(
                 f"<div style='background-color:{results['color']}22; border-radius:10px; padding:20px; border:2px solid {results['color']}; text-align:center;'>"
                 f"<h1 style='color:{results['color']}; margin:0;'>{results['total_score']} / 100</h1>"
                 f"<h3 style='margin:10px 0 0 0; color:#333;'>{results['tier']}</h3>"
                 f"</div>", 
-                unsafe_check_boundary=True, unsafe_allow_html=True
+                unsafe_allow_html=True
             )
             
             # Display Developer Basics Layout
             st.markdown(f"### 👤 {user_data.get('name') or user_data.get('login')}")
-            st.caption(f"📝 **Bio:** {user_data.get('bio') or '*None*'}")
+            st.write(f"📝 **Bio:** {user_data.get('bio') or '*None*'}")
             
             # --- FEATURE: GOOD VS BAD AUDIT MATRIX ---
             st.subheader("💡 Strategic Profile Performance Breakdown")
@@ -93,12 +92,12 @@ if st.button("Analyze Profile Metrics", type="primary"):
                 l = r.get("language")
                 if l: langs[l] = langs.get(l, 0) + 1
             if langs:
-                lang_df = pd.DataFrame([langs])
-                st.bar_chart(lang_df, horizontal=True, use_container_width=True)
+                lang_df = pd.DataFrame(list(langs.items()), columns=["Language", "Repository Count"])
+                st.bar_chart(lang_df, x="Language", y="Repository Count", use_container_width=True)
             else:
                 st.info("No explicit languages declared in public repositories.")
 
-            # --- FEATURE: RECENT EVENT RADAR ---
+            # --- FEATURE: CATEGORY WEIGHTS ---
             st.subheader("📊 Category Weights Chart")
             chart_df = pd.DataFrame({
                 "Evaluation Dimension": list(results["breakdown"].keys()),
