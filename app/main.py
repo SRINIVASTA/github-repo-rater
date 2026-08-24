@@ -2,12 +2,33 @@ import streamlit as st
 import requests
 import pandas as pd
 from scorer import calculate_user_rating
+import logging
 
 # Web layout configuration setup
 st.set_page_config(page_title="GitHub User Auditor", page_icon="👤", layout="centered")
 
 st.title("👤 GitHub User Profile Auditor")
 st.write("Analyze and grade a developer's public GitHub footprint instantly from your browser.")
+
+# --- 3. FORCE STREAMLIT CHROMIUM HIDING LAYERS & GAP FIX ---
+st.markdown(""" 
+ <style> 
+ header[data-testid="stHeader"] { visibility: hidden !important; display: none !important; } 
+ div[data-testid="stToolbar"] { visibility: hidden !important; display: none !important; } 
+ footer { visibility: hidden !important; } 
+ 
+ [data-testid="stMainBlockContainer"] {
+     padding-top: 1rem !important;
+ }
+ .main .block-container {
+     padding-top: 1rem !important;
+ }
+ </style> 
+ """, unsafe_allow_html=True) 
+
+logging.basicConfig(level=logging.INFO) 
+logger = logging.getLogger("FIREWALL") 
+
 
 # --- 🔑 AUTOMATED ACCESS VERIFICATION KEY ---
 if "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != "":
