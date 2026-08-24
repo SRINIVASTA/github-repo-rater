@@ -17,30 +17,37 @@ if st.button("Run Analytics Engine", type="primary"):
         st.warning("Please enter a valid path.")
     else:
         # Format strings to extract exact repo addresses
-        repo_path = repo_input.replace("https://github.com/", "").strip("/")
-        api_url = f"https://api.github.com/repos/{repo_path}"
+        repo_path = repo_input.replace("https://github.com", "").strip("/")
         
-        with st.spinner("Processing API data metrics..."):
-            response = requests.get(api_url)
+        # Validation: Check if the input contains the required slash '/'
+        if "/" not in repo_path:
+            st.error("⚠️ Invalid format! Please enter the path as 'username/repository-name'. Example: srinivasta/my-project")
+        else:
+            api_url = f"https://github.com{repo_path}"
             
-            if response.status_code == 200:
-                repo_data = response.json()
-                results = calculate_rating(repo_data)
+            with st.spinner("Processing API data metrics..."):
+                response = requests.get(api_url)
                 
-                st.success("Analysis Complete!")
-                
-                # Render Metric Blocks
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.metric(label="Overall Score", value=f"{results['total_score']} / 100")
-                with c2:
-                    st.metric(label="Calculated Grade", value=results['grade'])
-                
-                # Visual Chart
-                chart_df = pd.DataFrame({
-                    "Metric Section": list(results["breakdown"].keys()),
-                    "Assigned Weight": list(results["breakdown"].values())
-                })
-                st.bar_chart(data=chart_df, x="Metric Section", y="Assigned Weight", use_container_width=True)
-            else:
-                st.error("Could not fetch data. Check your connection or repository name spelling.")
+                if response.status_code == 200:
+                    repo_data = response.json()
+                    results = calculate_rating(repo_data)
+                    
+                    st.success("Analysis Complete!")
+                    
+                    # Render Metric Blocks
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.metric(label="Overall Score", value=f"{results['total_score']} / 100")
+                    with c2:
+                        st.metric(label="Calculated Grade", value=results['grade'])
+                    
+                    # Visual Chart
+                    chart_df = pd.DataFrame({
+                        "Metric Section": list(results["breakdown"].keys()),
+                        "Assigned Weight": list(results["breakdown"].values())
+                    })
+                    st.bar_chart(data=chart_df, x="Metric Section", y="Assigned Weight", use_container_width=True)
+                elif response.status_code == 404:
+                    st.error("🔍 Repository not found. Please double-check the spelling of the username and repository.")
+                else:
+                    st.error("Could not fetch data. GitHub API rate limit might be reached. Try again later.")
