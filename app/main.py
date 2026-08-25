@@ -1,13 +1,13 @@
 import streamlit as st
 import requests
 import pandas as pd
-from scorer import calculate_user_rating  # <-- Correct clean local import
+from scorer import calculate_user_rating  # Imports cleanly from same /app directory
 
 st.set_page_config(page_title="GitHub User Auditor", page_icon="👤", layout="centered")
 st.title("👤 GitHub User Profile Auditor")
 st.write("Analyze and grade a developer's public GitHub footprint instantly from your browser.")
 
-# Force Streamlit layer UI gap hiding fixes
+# Force Streamlit styling fixes to hide headers/footers
 st.markdown(""" 
  <style> 
  header[data-testid="stHeader"] { visibility: hidden !important; display: none !important; } 
@@ -17,6 +17,7 @@ st.markdown("""
  </style> 
  """, unsafe_allow_html=True) 
 
+# Validate GITHUB_TOKEN directly from Streamlit Secrets
 has_token = "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != ""
 
 if has_token:
@@ -30,24 +31,30 @@ if st.button("Audit User Profile", type="primary"):
     if not user_input:
         st.warning("Please enter a username.")
     else:
-        parsed_input = user_input.replace("https://github.com", "").strip("/").split("/")
+        # Safely parse out full link string if user pastes complete profile address
+        parsed_input = user_input.replace("https://github.com/", "").strip("/").split("/")
         username = parsed_input[0] if parsed_input else user_input.strip()
         
         api_url = f"https://github.com{username}"
-        headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "Streamlit-User-Auditor-v1"}
+        headers = {
+            "Accept": "application/vnd.github.v3+json", 
+            "User-Agent": "Streamlit-User-Auditor-v1"
+        }
+        
         if has_token:
             headers["Authorization"] = f"Bearer {st.secrets['GITHUB_TOKEN'].strip()}"
             
         with st.spinner(f"Fetching real-time data for @{username}..."):
             try:
-                response = requests.get(api_url, headers=headers, timeout=10)
+                # 30-second timeout to accommodate transient API degradation lags
+                response = requests.get(api_url, headers=headers, timeout=30)
                 
                 if response.status_code == 200:
                     user_data = response.json()
                     results = calculate_user_rating(user_data)
                     
                     st.success(f"🎯 Audit Complete for @{user_data.get('login')}!")
-                    col1, col2 = st.columns()
+                    col1, col2 = st.columns([1, 2])
                     with col1:
                         if user_data.get("avatar_url"):
                             st.image(user_data.get("avatar_url"), width=150)
@@ -58,18 +65,26 @@ if st.button("Audit User Profile", type="primary"):
                     
                     st.divider()
                     c1, c2 = st.columns(2)
-                    with c1: st.metric(label="Profile Grade Score", value=f"{results['total_score']} / 100")
-                    with c2: st.metric(label="Calculated Tier Grade", value=results['grade'])
+                    with c1: 
+                        st.metric(label="Profile Grade Score", value=f"{results['total_score']} / 100")
+                    with c2: 
+                        st.metric(label="Calculated Rating", value=results['grade'])
                     
-                    # Renders bar chart using your custom exact dictionary keys
+                    # Graph your custom keys directly
                     chart_df = pd.DataFrame({
                         "Evaluation Module": list(results["breakdown"].keys()),
                         "Score Segment": list(results["breakdown"].values())
                     })
                     st.bar_chart(data=chart_df, x="Evaluation Module", y="Score Segment", use_container_width=True)
+                
                 else:
                     st.error(f"❌ GitHub API Error Code: {response.status_code}")
-                    if response.status_code == 404: st.info("💡 Username does not match an active user account.")
-                    elif response.status_code == 403: st.warning("💡 API Rate Limit Reached.")
-            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+                    if response.status_code == 404: 
+                        st.info("💡 Target username does not match an active user account.")
+                    elif response.status_code == 403: 
+                        st.warning("💡 API Rate Limit Reached. Add or verify your GITHUB_TOKEN configuration.")
+            
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                # Pure connection exception monitoring catch wrapper
                 st.error("🌐 Connection Failure: Unable to reach the GitHub API endpoints.")
+                st.info("Please verify your internet connection or check if GitHub services are down.")
