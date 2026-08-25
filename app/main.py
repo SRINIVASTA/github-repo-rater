@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import pandas as pd
-from scorer import calculate_user_rating
 import logging
 
 # Web layout configuration setup
@@ -10,7 +9,7 @@ st.set_page_config(page_title="GitHub User Auditor", page_icon="👤", layout="c
 st.title("👤 GitHub User Profile Auditor")
 st.write("Analyze and grade a developer's public GitHub footprint instantly from your browser.")
 
-# --- 3. FORCE STREAMLIT CHROMIUM HIDING LAYERS & GAP FIX ---
+# --- 1. FORCE STREAMLIT CHROMIUM HIDING LAYERS & GAP FIX ---
 st.markdown(""" 
  <style> 
  header[data-testid="stHeader"] { visibility: hidden !important; display: none !important; } 
@@ -30,31 +29,74 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("FIREWALL") 
 
 
-# --- 🔑 AUTOMATED ACCESS VERIFICATION KEY ---
-if "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != "":
-    st.sidebar.success("🔒 GitHub Token Status: ACTIVE")
+# --- 2. EMBEDDED SCORING ENGINE ---
+def calculate_user_rating(user_data):
+    """
+    Grades a GitHub profile out of 100 points based on completeness and metrics.
+    """
+    breakdown = {
+        "Profile Completeness": 0,
+        "Repository Footprint": 0,
+        "Network Presence": 0
+    }
+    
+    # 1. Profile Completeness (Max 40 points)
+    if user_data.get("bio"): breakdown["Profile Completeness"] += 15
+    if user_data.get("blog"): breakdown["Profile Completeness"] += 15
+    if user_data.get("location"): breakdown["Profile Completeness"] += 10
+    
+    # 2. Repository Footprint (Max 30 points)
+    repos = user_data.get("public_repos", 0)
+    breakdown["Repository Footprint"] = min(30, max(5, repos * 2))
+        
+    # 3. Network Presence (Max 30 points)
+    followers = user_data.get("followers", 0)
+    breakdown["Network Presence"] = min(30, max(5, followers * 2))
+
+    total_score = sum(breakdown.values())
+    
+    # Assign Tier Categories
+    if total_score >= 75: 
+        grade = "Elite (Tier 1)"
+    elif total_score >= 45: 
+        grade = "Professional (Tier 2)"
+    else: 
+        grade = "Emerging (Tier 3)"
+        
+    return {"total_score": total_score, "grade": grade, "breakdown": breakdown}
+
+
+# --- 3. 🔑 AUTOMATED ACCESS VERIFICATION KEY ---
+# Seamlessly checks Streamlit runtime secrets for authenticating credentials
+has_token = "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != ""
+
+if has_token:
+    st.sidebar.success("🔒 GitHub Token Status: ACTIVE (5,000 req/hr)")
 else:
-    st.sidebar.info("💡 Running via Standard Public Optimization Channels")
+    st.sidebar.warning("💡 Running unauthenticated (60 req/hr Shared Limit)")
 
 # User input text forms - accepts clean username strings or full links
-user_input = st.text_input("GitHub Username", placeholder="e.g., srinivasta")
+user_input = st.text_input("GitHub Username", placeholder="e.g., torvalds")
 
 if st.button("Audit User Profile", type="primary"):
     if not user_input:
         st.warning("Please enter a username.")
     else:
-        # Extract username from full URL strings if pasted
-        username = user_input.replace("https://github.com/", "").strip("/").split("/")[0]
-        api_url = f"https://api.github.com/users/{username}"
+        # Extract username cleanly even if the user pastes a full URL link string
+        parsed_input = user_input.replace("https://github.com/", "").strip("/").split("/")
+        username = parsed_input[0] if parsed_input else user_input.strip()
+        
+        api_url = f"https://github.com{username}"
         
         headers = {
             "Accept": "application/vnd.github.v3+json",
             "User-Agent": "Streamlit-User-Auditor-v1"
         }
-        if "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != "":
+        # Inject the Streamlit Secrets token into request headers dynamically
+        if has_token:
             headers["Authorization"] = f"Bearer {st.secrets['GITHUB_TOKEN'].strip()}"
             
-        with st.spinner("Compiling developer profile data..."):
+        with st.spinner(f"Compiling developer profile data for @{username}..."):
             try:
                 response = requests.get(api_url, headers=headers, timeout=10)
                 
@@ -96,7 +138,7 @@ if st.button("Audit User Profile", type="primary"):
                     if not user_data.get("bio"):
                         st.error("❌ Missing Account Bio: Add a brief summary detailing your technical specialization stacks.")
                     if not user_data.get("blog"):
-                        st.warning("⚠️ Portfolio Portfolio Link Missing: Connect a portfolio URL or LinkedIn page to your profile.")
+                        st.warning("⚠️ Portfolio Link Missing: Connect a portfolio URL or LinkedIn page to your profile.")
                     if results['total_score'] >= 75:
                         st.info("🔥 Outstanding profile layout! This workspace projects clear authority, active maintenance, and solid personal branding.")
                     else:
@@ -106,26 +148,27 @@ if st.button("Audit User Profile", type="primary"):
                     st.error(f"❌ GitHub API Return Code: {response.status_code}")
                     if response.status_code == 404:
                         st.info("💡 The specified username does not match an active user account.")
+                    elif response.status_code == 403:
+                        st.info("💡 Rate limit reached. Ensure your GITHUB_TOKEN is active inside Streamlit secrets.")
                         
             except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-                # 🚀 NETWORK RESILIENT FALLBACK MODULE
-                st.warning("🌐 Running backup simulation engine due to server connection constraints...")
+                # 🚀 NETWORK RESILIENT FALLBACK MODULE (Now entirely dynamic based on input)
+                st.warning("🌐 Running dynamic simulation engine due to unexpected network timeout constraints...")
                 
-                # Creates structural data maps if cloud IP proxy throttling returns a block
+                # Creates structural data maps dynamically tailored to the searched username
                 scraped_fallback = {
                     "login": username,
-                    "name": "Srinivasta",
-                    "public_repos": 12,
-                    "followers": 45,
+                    "name": username.replace("-", " ").title(),
+                    "public_repos": 14,
+                    "followers": 35,
                     "following": 20,
-                    "bio": "Enterprise Solutions Architect | GDG Leader",
-                    "blog": "https://portfolio.dev",
-                    "location": "Visakhapatnam, India",
-                    "company": "AI SaaS Lab"
+                    "bio": f"Software Engineer | Systems architect building out workspace deployments for @{username}.",
+                    "blog": f"https://{username}.github.io",
+                    "location": "Remote / Distributed Space"
                 }
                 
                 results = calculate_user_rating(scraped_fallback)
-                st.success(f"🎯 Audit Complete for @{scraped_fallback['login']}!")
+                st.success(f"🎯 Simulation Complete for @{scraped_fallback['login']}!")
                 
                 st.subheader(scraped_fallback["name"])
                 st.caption(f"📍 Location: {scraped_fallback['location']}")
@@ -135,7 +178,7 @@ if st.button("Audit User Profile", type="primary"):
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    st.metric(label="Profile Grade Score (Estimated)", value=f"{results['total_score']} / 100")
+                    st.metric(label="Estimated Profile Score", value=f"{results['total_score']} / 100")
                 with c2:
                     st.metric(label="Calculated Tier", value=results['grade'])
                     
