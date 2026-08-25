@@ -138,12 +138,3 @@ with tab2:
                 
             st.info("💡 Note: For security and safety, formal console logging outputs remain inside your local server terminal window terminal logs.")
 
-### How to see it in action
-1. Make sure `pytest` is added to your **`requirements.txt`** file so your Streamlit hosting server installs it.
-2. Run your application as usual:
-   ```bash
-   streamlit run app/main.py
-   ```
-3. Click on the **"Live Pytest Suite"** tab at the top of your app window, and click the **"Run Pytest Suite Engine"** button. You will see a success notification directly on your webpage layout!
-
-Would you like to **configure a GitHub Action** to automatically verify these tests every time you push code to GitHub, or should we update your **`requirements.txt`** file next?
