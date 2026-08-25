@@ -32,22 +32,25 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("FIREWALL") 
 
 
-# --- 2. 🧪 AUTOMATED PYTEST SIDEBAR STATUS CHECK ---
+# --- 2. 🧪 USER-TRIGGERED PYTEST SIDEBAR DIAGNOSTICS ---
 st.sidebar.markdown("### ⚙️ System Diagnostics")
 
-# Run pytest on test_app.py quietly in the background on startup
-# exit_code 0 means everything passed perfectly
-try:
-    exit_code = pytest.main(["-q", "test_app.py"])
-    if exit_code == pytest.ExitCode.NO_TESTS_COLLECTED:
-        exit_code = pytest.main(["-q", "app/test_app.py"])
-        
-    if exit_code == 0:
-        st.sidebar.success("✅ Pytest Suite: PASSED (5/5 Engine Verified)")
-    else:
-        st.sidebar.error("❌ Pytest Suite: FAILED (Regression Detected)")
-except Exception:
-    st.sidebar.warning("⚠️ Pytest Suite: UNKNOWN (test_app.py missing)")
+# Manual button letting the user decide when to apply pytest
+if st.sidebar.button("🧪 Run Pytest Engine", type="secondary"):
+    with st.sidebar.spinner("Running math tests..."):
+        try:
+            exit_code = pytest.main(["-q", "test_app.py"])
+            if exit_code == pytest.ExitCode.NO_TESTS_COLLECTED:
+                exit_code = pytest.main(["-q", "app/test_app.py"])
+                
+            if exit_code == 0:
+                st.sidebar.success("✅ Pytest Suite: PASSED (5/5 Engine Verified)")
+            else:
+                st.sidebar.error("❌ Pytest Suite: FAILED (Regression Detected)")
+        except Exception:
+            st.sidebar.warning("⚠️ Pytest Suite: UNKNOWN (test_app.py missing)")
+else:
+    st.sidebar.info("💡 Click the button above to manually run pytest validations.")
 
 
 # --- 3. 🔑 AUTOMATED ACCESS VERIFICATION CHECK ---
@@ -68,10 +71,10 @@ if st.button("Audit User Profile", type="primary"):
         st.warning("Please enter a username.")
     else:
         # Extract username cleanly even if the user pastes a full URL link string
-        parsed_input = user_input.replace("https://github.com/", "").strip("/").split("/")
-        username = parsed_input[0] if parsed_input else user_input.strip()
+        parsed_input = user_input.replace("https://github.com", "").strip("/").split("/")
+        username = parsed_input if parsed_input else user_input.strip()
         
-        api_url = f"https://api.github.com/users/{username}"
+        api_url = f"https://github.com{username}"
         
         headers = {
             "Accept": "application/vnd.github.v3+json",
@@ -94,7 +97,7 @@ if st.button("Audit User Profile", type="primary"):
                     st.success(f"🎯 Audit Complete for @{user_data.get('login')}!")
                     
                     # Layout Summary Display Cards using live-fetched metrics
-                    col1, col2 = st.columns([1, 3])
+                    col1, col2 = st.columns()
                     with col1:
                         if user_data.get("avatar_url"):
                             st.image(user_data.get("avatar_url"), width=150)
