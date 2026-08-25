@@ -2,7 +2,12 @@ import streamlit as st
 import requests
 import pandas as pd
 import logging
-from app.scorer import calculate_user_rating
+
+# Fallback pathing strategy to satisfy both PyTest execution layers and Streamlit Cloud runtime paths
+try:
+    from app.scorer import calculate_user_rating
+except ModuleNotFoundError:
+    from scorer import calculate_user_rating
 
 def run_app():
     st.set_page_config(page_title="GitHub User Auditor", page_icon="👤", layout="centered")
