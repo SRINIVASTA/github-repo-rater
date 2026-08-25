@@ -57,21 +57,27 @@ elif not simulation_mode:
 user_input = st.text_input("GitHub Username", placeholder="e.g., torvalds")
 
 if st.button("Audit User Profile", type="primary"):
-    if not user_input:
-        st.warning("Please enter a username.")
+    # Strip spaces instantly to catch hidden spacebar submissions safely
+    clean_input = user_input.strip() if user_input else ""
+    
+    if not clean_input:
+        st.warning("⚠️ Please provide a valid username before executing an audit sequence.")
     else:
         # Extract username cleanly even if the user pastes a full URL link string
-        parsed_input = user_input.replace("https://github.com", "").strip("/").split("/")
-        username = parsed_input if parsed_input else user_input.strip()
+        parsed_input = clean_input.replace("https://github.com", "").strip("/").split("/")
+        username = parsed_input[0].strip() if (parsed_input and parsed_input[0].strip()) else "Developer"
         
         # --- IF THE USER TICKS THE BOX: INJECT 100% PERFECT MOCK DATA IMMEDIATELY ---
         if simulation_mode:
             st.toast("Simulating an elite workspace evaluation sequence...", icon="🚀")
             
+            # Safe text capitalization lookup fallback wrapper setup
+            display_name = username.capitalize() if username else "Developer"
+            
             # Constructing a perfect 100/100 profile payload locally
             user_data = {
                 "login": username,
-                "name": f"{username.capitalize()} (Simulation)",
+                "name": f"{display_name} (Simulation)",
                 "avatar_url": "https://unsplash.com",
                 "location": "Silicon Valley, CA",
                 "bio": "Principal Open Source Architect | Specialized Framework Contributor | Systems Engineer",
@@ -86,7 +92,7 @@ if st.button("Audit User Profile", type="primary"):
             # Run the scoring calculation function locally
             results = calculate_user_rating(user_data)
             
-            # Update values manually to match whatever absolute layout display you want
+            # Force absolute ceiling configurations manually for visualization display
             results["total_score"] = 100.0
             results["grade"] = "A+"
             results["breakdown"] = {
@@ -123,7 +129,7 @@ if st.button("Audit User Profile", type="primary"):
         if status_code == 200:
             st.success(f"🎯 Audit Complete for @{user_data.get('login')}!")
             
-            col1, col2 = st.columns([1, 3])
+            col1, col2 = st.columns()
             with col1:
                 if user_data.get("avatar_url"):
                     st.image(user_data.get("avatar_url"), width=150)
