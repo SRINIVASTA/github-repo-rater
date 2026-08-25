@@ -66,8 +66,8 @@ def calculate_user_rating(user_data):
     return {"total_score": total_score, "grade": grade, "breakdown": breakdown}
 
 
-# --- 3. 🔑 AUTOMATED ACCESS VERIFICATION KEY ---
-# Seamlessly checks Streamlit runtime secrets for authenticating credentials
+# --- 3. 🔑 AUTOMATED ACCESS VERIFICATION CHECK ---
+# Seamlessly verifies Streamlit runtime secrets for authenticating credentials
 has_token = "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != ""
 
 if has_token:
@@ -86,17 +86,18 @@ if st.button("Audit User Profile", type="primary"):
         parsed_input = user_input.replace("https://github.com/", "").strip("/").split("/")
         username = parsed_input[0] if parsed_input else user_input.strip()
         
-        api_url = f"https://github.com{username}"
+        api_url = f"https://api.github.com/users/{username}"
         
         headers = {
             "Accept": "application/vnd.github.v3+json",
             "User-Agent": "Streamlit-User-Auditor-v1"
         }
+        
         # Inject the Streamlit Secrets token into request headers dynamically
         if has_token:
             headers["Authorization"] = f"Bearer {st.secrets['GITHUB_TOKEN'].strip()}"
             
-        with st.spinner(f"Compiling developer profile data for @{username}..."):
+        with st.spinner(f"Fetching real-time data for @{username}..."):
             try:
                 response = requests.get(api_url, headers=headers, timeout=10)
                 
@@ -106,8 +107,8 @@ if st.button("Audit User Profile", type="primary"):
                     
                     st.success(f"🎯 Audit Complete for @{user_data.get('login')}!")
                     
-                    # Layout Summary Display Cards
-                    col1, col2 = st.columns([1, 2])
+                    # Layout Summary Display Cards using live-fetched metrics
+                    col1, col2 = st.columns([1, 3])
                     with col1:
                         if user_data.get("avatar_url"):
                             st.image(user_data.get("avatar_url"), width=150)
@@ -133,7 +134,7 @@ if st.button("Audit User Profile", type="primary"):
                     })
                     st.bar_chart(data=chart_df, x="Evaluation Module", y="Score Segment", use_container_width=True)
                     
-                    # Profile optimization feedback logic
+                    # Profile optimization feedback logic based strictly on current user profile data
                     st.subheader("💡 Optimization Recommendations")
                     if not user_data.get("bio"):
                         st.error("❌ Missing Account Bio: Add a brief summary detailing your technical specialization stacks.")
@@ -145,45 +146,17 @@ if st.button("Audit User Profile", type="primary"):
                         st.info("📌 Tip: Increasing your public activity and filling out your profile fields will improve your score.")
 
                 else:
+                    # Clear errors instead of fallback masks
                     st.error(f"❌ GitHub API Return Code: {response.status_code}")
                     if response.status_code == 404:
-                        st.info("💡 The specified username does not match an active user account.")
+                        st.info("💡 The specified username does not match an active user account. Please check your spelling.")
                     elif response.status_code == 403:
-                        st.info("💡 Rate limit reached. Ensure your GITHUB_TOKEN is active inside Streamlit secrets.")
+                        st.warning("💡 API Rate Limit Reached. If you have a token setup, verify it has not expired.")
+                    elif response.status_code == 401:
+                        st.error("💡 Unauthorized: The GITHUB_TOKEN inside your Streamlit secrets is invalid.")
                         
-            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-                # 🚀 NETWORK RESILIENT FALLBACK MODULE (Now entirely dynamic based on input)
-                st.warning("🌐 Running dynamic simulation engine due to unexpected network timeout constraints...")
-                
-                # Creates structural data maps dynamically tailored to the searched username
-                scraped_fallback = {
-                    "login": username,
-                    "name": username.replace("-", " ").title(),
-                    "public_repos": 14,
-                    "followers": 35,
-                    "following": 20,
-                    "bio": f"Software Engineer | Systems architect building out workspace deployments for @{username}.",
-                    "blog": f"https://{username}.github.io",
-                    "location": "Remote / Distributed Space"
-                }
-                
-                results = calculate_user_rating(scraped_fallback)
-                st.success(f"🎯 Simulation Complete for @{scraped_fallback['login']}!")
-                
-                st.subheader(scraped_fallback["name"])
-                st.caption(f"📍 Location: {scraped_fallback['location']}")
-                st.write(scraped_fallback["bio"])
-                
-                st.divider()
-                
-                c1, c2 = st.columns(2)
-                with c1:
-                    st.metric(label="Estimated Profile Score", value=f"{results['total_score']} / 100")
-                with c2:
-                    st.metric(label="Calculated Tier", value=results['grade'])
-                    
-                chart_df = pd.DataFrame({
-                    "Evaluation Module": list(results["breakdown"].keys()),
-                    "Score Segment": list(results["breakdown"].values())
-                })
-                st.bar_chart(data=chart_df, x="Evaluation Module", y="Score Segment", use_container_width=True)
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                # Strictly reports connection issues rather than showing simulated mock scores
+                st.error("🌐 Connection Failure: Unable to reach the GitHub API endpoints.")
+                st.info("Please verify your internet connection or check if GitHub services are down.")
+                logger.error(f"API Connection Exception: {str(e)}")
