@@ -71,7 +71,7 @@ def calculate_user_rating(user_data):
 has_token = "GITHUB_TOKEN" in st.secrets and st.secrets["GITHUB_TOKEN"].strip() != ""
 
 if has_token:
-    st.sidebar.success("🔒 GitHub Token Status: ACTIVE (5,000 req/hr)")
+    st.sidebar.success("🔒 GitHub Token Status: ACTIVE")
 else:
     st.sidebar.warning("💡 Running unauthenticated (60 req/hr Shared Limit)")
 
